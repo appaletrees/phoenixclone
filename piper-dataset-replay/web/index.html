@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Piper · 原始数据回放</title><link rel="stylesheet" href="/static/style.css"></head>
+<body>
+<header><div class="brand"><span class="brand-mark">P</span><div><strong>Piper / Replay</strong><small>原始采集数据 · 真机回放工作台</small></div></div>
+<div class="header-right"><span id="modeBadge" class="badge">正在连接页面</span><span id="connection" class="connection">● 未连接设备</span></div></header>
+<div class="workspace">
+<aside>
+<div class="section-title"><span>01</span> 选择采集轨迹</div>
+<label>数据集<select id="dataset"></select></label>
+<label>原始 episode 编号（从 0 开始）<select id="episode"></select></label>
+<label>回放内容<select id="field"><option value="action">action · 采集时的目标动作</option><option value="state">state · 采集时的关节反馈</option></select></label>
+<p class="hint">直接读取原始采集文件。关节按绝对位置回放，夹爪保持原有 0–1 定义。</p>
+<button id="load" class="button secondary full">加载所选轨迹</button>
+<div id="episodeInfo" class="info-box">选择一条轨迹开始。</div>
+<div class="section-title"><span>02</span> 回放时钟</div>
+<label>目标更新频率 <span class="suffix">Hz</span><input id="hz" type="number" value="30" min="0.1" max="100" step="1"></label>
+<div class="presets"><button data-hz="7.5">¼ 速</button><button data-hz="15">½ 速</button><button data-hz="30" class="selected">原速</button><button data-hz="60">2 倍</button></div>
+<div class="rate-description" id="rateDescription">30 Hz = 原速 1.00×</div>
+<button id="applyRate" class="button subtle full">应用频率（可在回放中修改）</button>
+<label class="alignment">起点对齐时长 <span class="suffix">秒</span><input id="align" type="number" value="3" min="0" max="60" step="0.5"></label>
+<p class="hint">开始时，从当前姿态过渡到选定帧。设为 0 则直接发送首帧；轨迹内部不加平滑。</p>
+<div class="section-title"><span>03</span> 设备与执行</div>
+<label>关节控制模式<select id="controlMode"><option value="joint">Joint · 原有位置控制</option><option value="mit">MIT · 阻抗控制</option></select></label>
+<div id="mitParameters" hidden>
+<div class="two-buttons">
+<label>刚度 Kp<input id="mitKp" type="number" value="15" min="0" max="500" step="0.1"></label>
+<label>阻尼 Kd<input id="mitKd" type="number" value="1" min="-5" max="5" step="0.1"></label>
+<label>目标速度 · rad/s<input id="mitVelRef" type="number" value="0" min="-45" max="45" step="0.1"></label>
+<label>前馈力矩 · Nm<input id="mitTRef" type="number" value="0" min="-8" max="8" step="0.1"></label>
+<label>速度百分比 · %<input id="mitSpeedLimit" type="number" value="60" min="0" max="100" step="1"></label>
+<label>驱动线程 · Hz<input id="mitRobotRate" type="number" value="210" min="1" max="1000" step="1"></label>
+</div>
+<p class="hint">参数对双臂所有关节生效。默认配置同步自 teleop_inference，与 Phoenix 推理共用。目标角度仍取原始帧；驱动频率不改变回放快慢。</p>
+</div>
+<button id="applyControl" class="button secondary full">应用控制配置</button>
+<div id="controlSummary" class="info-box">正在读取控制配置…</div>
+<p class="hint" id="controlHint">连接前选择并应用配置；已连接时先断开设备再修改。</p>
+<button id="connect" class="button secondary full">连接设备与相机</button>
+<button id="start" class="button primary full" disabled>开始真机回放</button>
+<div class="two-buttons"><button id="pause" class="button secondary">暂停</button><button id="stop" class="button secondary">停止回放</button></div>
+<p class="hint">暂停／停止回放会保持当前姿态。</p>
+<button id="disable" class="button danger full">停止并失能</button>
+<button id="disconnect" class="button subtle full">断开设备</button>
+<div class="section-title"><span>04</span> 本次运行记录</div>
+<div class="info-box">保存格式：LeRobot v2.1 · Parquet＋MP4＋meta</div>
+<label>保存根目录<input id="recordOutputDir" type="text" value="runs" placeholder="例如 runs 或 /data/piper-recordings"></label>
+<p class="hint">相对路径以本回放工具目录为基准；也支持绝对路径。每次运行自动创建独立时间目录。</p>
+<label>记录内容<select id="recordMode"><option value="actions">状态＋动作＋夹爪诊断</option><option value="full">状态＋动作＋三路现场 RGB 图像</option></select></label>
+<label>图像记录频率 <span class="suffix">Hz</span><input id="recordImageHz" type="number" value="10" min="1" max="30" step="1"></label>
+<button id="applyRecording" class="button secondary full">应用记录配置</button>
+<div id="recordingStatus" class="info-box" role="status">准备读取记录配置…</div>
+<p class="hint" id="recordingHint">停止后后台生成 LeRobot v2.1。图像与状态按时间对齐，原始采样时间保留。</p>
+<div class="session-note">只控制当前选定轨迹。页面加载、选择轨迹和拖动进度条不会发送运动目标。</div>
+</aside>
+<main>
+<div class="page-heading"><div><div class="eyebrow">DATASET PLAYBACK</div><h1>看见每一帧，也看见每个关节</h1></div><div class="phase"><span id="phaseDot"></span><b id="phase">等待加载</b></div></div>
+<div id="notice" role="status">先加载采集轨迹，再连接设备。</div>
+<div class="camera-heading"><h2>三摄像头</h2><div class="segmented"><button id="recorded" class="active">采集录像</button><button id="live">实时相机</button></div></div>
+<div class="camera-grid">
+<figure><div class="camera-label"><span>01 / 外部视角</span><i class="camera-state" id="camState0">录像</i></div><img id="cam0" alt="外部摄像头"><figcaption id="camInfo0">与原始帧位置同步</figcaption></figure>
+<figure><div class="camera-label"><span>02 / 左腕视角</span><i class="camera-state" id="camState1">录像</i></div><img id="cam1" alt="左腕摄像头"><figcaption id="camInfo1">与原始帧位置同步</figcaption></figure>
+<figure><div class="camera-label"><span>03 / 右腕视角</span><i class="camera-state" id="camState2">录像</i></div><img id="cam2" alt="右腕摄像头"><figcaption id="camInfo2">与原始帧位置同步</figcaption></figure>
+</div>
+<div class="timeline"><div class="timeline-header"><strong id="frameLabel">尚未加载</strong><span id="timeLabel">0.00 / 0.00 s</span></div><input id="seek" type="range" min="0" max="1" value="0" disabled><div class="timeline-footer"><span>暂停后可选择起始帧</span><span id="progressLabel">原始轨迹逐帧下发，不丢帧追赶</span></div></div>
+<div class="frame-controls"><label>指定原始帧号<input id="frameNumber" type="number" min="0" max="0" step="1" value="0"></label><button id="previewFrame" class="button secondary">预览该帧</button><button id="gotoFrame" class="button primary">移动到该帧并保持</button><p>预览只切换录像和起始位置；移动按钮按左侧“起点对齐时长”过渡到该帧的双臂与夹爪目标，随后保持并持续记录反馈，不自动播放下一帧。</p></div>
+<div class="metrics"><div><span>设定频率</span><strong id="requestedHz">30 <small>Hz</small></strong></div><div><span>实际更新频率</span><strong id="actualHz">—</strong></div><div><span>已下发帧</span><strong id="sent">0</strong></div><div><span>左右夹爪 · 目标 / 当前</span><strong id="grippers" class="grippers">— / —　·　— / —</strong></div></div>
+<div class="chart-heading"><div><h2>关节目标与反馈</h2><p id="chartMeaning">横轴为本次运行经过时间。蓝线是回放目标，黑线和圆点是当前关节反馈。</p></div><div class="chart-tools"><select id="unit" aria-label="角度单位"><option value="rad">弧度 rad</option><option value="deg">角度 °</option></select><select id="window" aria-label="图表时间窗口"><option value="30">最近 30 秒</option><option value="60">最近 60 秒</option><option value="0">全部记录</option></select></div></div>
+<div class="legend"><span><i class="blue"></i>回放目标</span><span><i class="black"></i><b id="feedbackLegend">当前关节反馈 · 采样点</b></span><div class="exports"><a id="csv" href="/api/recording.csv" download>导出关节 CSV ↗</a><button id="exportPlot">保存曲线 PNG ↗</button></div></div>
+<div class="chart-grid" id="charts"></div>
+<footer><span id="recording">开始回放后自动记录目标、反馈和驱动接受的目标。</span><span id="diagnostics"></span></footer>
+</main>
+</div>
+<script>window.REPLAY_TOKEN="__REPLAY_TOKEN__";</script><script src="/static/app.js"></script>
+</body></html>

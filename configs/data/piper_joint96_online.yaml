@@ -1,0 +1,24 @@
+# @package data
+defaults:
+  - robotwin_joint96_online_robot37
+  - _self_
+
+# Keep the online reference's sampling, image transforms and canonical80 slices.
+# null preserves the combined dataset; select one original folder per run.
+source_root: null
+train:
+  _target_: wam.datasets.piper_joint96.PiperJoint96OnlineDataset
+  domain: piper
+  dataset_dirs: ["${paths.piper}"]
+  pretrained_norm_stats: ${paths.piper}/meta/normalization.json
+  text_embedding_cache_dir: ${paths.piper_text}
+  episode_selection: null
+  source_root: ${data.source_root}
+val:
+  _target_: ${data.train._target_}
+  domain: piper
+  dataset_dirs: ${data.train.dataset_dirs}
+  pretrained_norm_stats: ${data.train.pretrained_norm_stats}
+  text_embedding_cache_dir: ${data.train.text_embedding_cache_dir}
+  episode_selection: null
+  source_root: ${data.source_root}

@@ -1,0 +1,20 @@
+{
+  "source": {
+    "repository": "https://git.midea.com/robotics/eagles-x/sink_bot_control",
+    "branch": "teleop_inference",
+    "commit": "798b5b65b44a71c25090a13fe15d5e61dee380b0",
+    "path": "example_agilex/scripts/inference_config_temp_smooth_MIT.yaml",
+    "local_copy": "configs/inference/upstream/teleop_inference/inference_config_temp_smooth_MIT.yaml",
+    "sha256": "be2fc263af817b9a861595b5b5dd9efaf571b7e78346694419f1ed38f94a5343",
+    "verified_on": "2026-11-02"
+  },
+  "scope": "Numerical MIT defaults shared by Phoenix inference and dataset replay. Control mode is selected independently; other upstream application settings are reference only.",
+  "mit": {
+    "kp": 15.0,
+    "kd": 1.0,
+    "vel_ref": 0.0,
+    "t_ref": 0.0,
+    "speed_limit": 60,
+    "robot_rate": 210
+  }
+}

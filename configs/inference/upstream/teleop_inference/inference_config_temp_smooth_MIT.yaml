@@ -1,0 +1,166 @@
+# Piper 双臂远程推理客户端配置 — Temporal Smoothing + MIT 模式
+# 基于 inference_config_temp_smooth.yaml，新增 MIT 阻抗控制模式支持
+#
+# 启动客户端:
+#   conda activate piper-teleop
+#   cd /path/to/example_agilex
+#   python scripts/inference_client_temp_smooth_MIT.py --config scripts/inference_config_temp_smooth_MIT.yaml
+
+# ── 策略服务器连接 ──────────────────────────────────────────
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+# LAN server
+# server:
+#   host: "192.168.1.1"
+#   port: 8000
+
+# ── 任务指令 ────────────────────────────────────────────────
+task:
+  # prompt: "picK up the eraser and erase the blackboard"
+  # prompt: "put the tableware into the basket and the trash into the trash bin"
+  # prompt: "fold the towel and put it into the plate"
+  prompt: "Insert the straw into the hole of the straw cup."
+
+# ── 观测输入配置（匹配 midea_pi PiperInputs）────────────────
+observation:
+  image_resize: 256
+
+  camera_mapping:
+    cam_left_wrist: "wrist_image_l"
+    cam_right_wrist: "wrist_image_r"
+    cam_external: "image"
+
+  state_dim: 15
+
+# ── 动作输出配置 ────────────────────────────────────────────
+action:
+  format: "absolute_joint"
+  dimension: 14
+  unit: "radians"
+  action_horizon: 50
+
+# ── 控制频率 ────────────────────────────────────────────────
+control:
+  policy_hz: 5                # 同步模式备用
+  control_hz: 30
+  robot_control_hz: 90        # 插帧后实际下发频率（仅 chunk_interpolation.enabled=true 时生效）
+  action_horizon_ratio: 0.6   # 同步模式备用
+  use_rtc: false              # 是否启用 RTC（实时补偿）观测注入，midea_pi 服务端需支持
+
+  # ── Temporal Smoothing（改进自kai0 StreamActionBuffer）──
+  use_temporal_smoothing: false
+  inference_hz: 4.0
+  latency_k: 4
+  min_smooth_steps: 2
+  max_overlap_steps: 25              # 融合窗口上限（0=不限制），防止旧chunk残留过多导致犹豫
+
+  # ── Gripper Decoupled Smoothing ──
+  # 夹爪与关节在 chunk 边界混合时解耦处理
+  separate_gripper_smoothing: true
+  gripper_smoothing_mode: "new_only"   # "same_as_joint" / "new_only" / "short_blend"
+  gripper_min_smooth_steps: 1          # "short_blend" 模式的混合步数
+
+# ── MIT 阻抗控制模式 ────────────────────────────────────────
+# 开启后关节下发使用 JointMitCtrl（阻抗/力矩混合），关闭则使用传统 JointCtrl（位置伺服）
+# 控制律: tau = kp * (pos_ref - pos) + kd * (vel_ref - vel) + t_ref
+mit:
+  enabled: true               # true=MIT阻抗控制, false=普通JOINT_SPACE位置控制
+  kp: 15.0                    # 刚度增益 (SDK范围 0~500, dev分支验证值)
+  kd: 1.0                     # 阻尼增益 (SDK范围 -5~5, dev分支验证值)
+  vel_ref: 0.0                # 目标速度 rad/s (SDK范围 -45~45)
+  t_ref: 0.0                  # 前馈力矩 Nm (SDK范围 -8~8)
+  speed_limit: 60             # MotionCtrl_2 速度限制百分比 (0~100)
+  robot_rate: 210             # MIT 模式下 PiperController 硬件发送频率 (Hz)
+                              # MIT 推荐 200~1000Hz; 位置模式默认 100Hz (common/configs.py ROBOT_RATE)
+                              # 此参数仅在 mit.enabled=true 时生效，否则使用 ROBOT_RATE
+  confirm_before_switch: true # 切换到MIT前需用户按Enter确认（安全措施，沿用11_replay逻辑）
+
+# ── Chunk 内插帧（锚点保持插值）──────────────────────────────
+# 开启后将 30Hz chunk 上采样到 90Hz，再送入 StreamActionBuffer
+# 时序平滑参数（latency_k 等）自动按插值倍率缩放，YAML 值保持 30Hz 语义
+chunk_interpolation:
+  enabled: true               # 开启 30Hz→90Hz 插帧
+  inserted_frames: 2          # 每两步间插 2 帧: 30Hz → 90Hz
+  method: "savgol"            # "savgol" / "bspline" / "linear"
+  gripper:
+    enabled: false            # 夹爪不插值，中间补帧 hold 前一个 anchor 值
+    method: "hold"
+  savgol:
+    window: 7
+    polyorder: 2
+  bspline:
+    order: 3
+
+# ── 安全参数 ────────────────────────────────────────────────
+safety:
+  max_joint_delta_deg: 20.0
+  max_gripper_delta: 1.0
+  server_timeout_ms: 2000
+  nan_fallback: "hold"
+
+# ── VLA 初始 standby 位姿 ──────────────────────────────────
+standby_pose:
+  left_arm:
+    # joint_positions: [0, 0, 0, 0, 0, 0]
+    joint_positions: [-44.2, 96.7, -80.0, 4.1, 69.9, -27.3]
+    gripper_open: 0.995
+  right_arm:
+    # joint_positions: [0, 0, 0, 0, 0, 0]
+    joint_positions: [34.7, 91.7, -71.3, -3.9, 66.3, 32.9]
+    gripper_open: 0.995
+  move_steps: 200
+  move_interval: 0.03
+
+# ── 存储rollout结果 ────────────────────────────────────────
+enable_rollout_recording: true   
+task_name: "rollout_task"  
+# session_id: "awbc_rollout_120"
+session_id: "fold_laundry_random_20260828"
+start_episode_id: "000003"
+operator: "piper"
+task_description: "pick up the object and place it"
+
+
+# Output directory Lab server4090/datasets
+data_dir: "/home/guojin13/datasets/"
+
+# Recording parameters
+recording:
+  fps: 30                    # Camera and state sampling rate (must match RealSense capability)
+  resolution: [640, 480]     # [width, height]
+  record_depth: false        # Set true to also record depth frames
+  depth_format: "png"        # "png" (lossless uint16) or "npy" (numpy array)
+  video_codec: "mp4v"        # OpenCV VideoWriter fourcc codec
+  takeover_episodes_log: "/path/to/logs/takeover_episodes.txt"
+  
+# ── 相机硬件 ────────────────────────────────────────────────
+# cameras:
+#   cam_left_wrist:
+#     serial: "243622072707"
+#     enabled: true
+#     rotate_degrees: 0        # 0, 90, 180, 270 clockwise rotation
+#   cam_right_wrist:
+#     serial: "243722071853"
+#     enabled: true
+#     rotate_degrees: 0
+#   cam_external:
+#     serial: "343122300282"
+#     enabled: true
+#     rotate_degrees: 0
+
+# insert the staw into the strawcup
+cameras:
+  cam_left_wrist:
+    serial: "243622072707"
+    enabled: true
+    rotate_degrees: 0        # 0, 90, 180, 270 clockwise rotation
+  cam_right_wrist:
+    serial: "243722071853"
+    enabled: true
+    rotate_degrees: 0
+  cam_external:
+    serial: "352222304785"
+    enabled: true
+    rotate_degrees: 0

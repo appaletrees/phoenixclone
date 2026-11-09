@@ -1,0 +1,41 @@
+{
+  "schema": "phoenix.piper.sources.v1",
+  "sources": [
+    {
+      "root": "datasets/connector_plugin",
+      "state_key": "observation.state",
+      "action_key": "action",
+      "native_dim": 14,
+      "joint_unit": "degrees",
+      "cameras": [
+        "observation.images.cam_external_rgb",
+        "observation.images.cam_left_wrist_rgb",
+        "observation.images.cam_right_wrist_rgb"
+      ]
+    },
+    {
+      "root": "datasets/fold_towel_mit",
+      "state_key": "state",
+      "action_key": "actions",
+      "native_dim": 15,
+      "joint_unit": "radians",
+      "cameras": ["image", "wrist_image_l", "wrist_image_r"]
+    },
+    {
+      "root": "datasets/piper_clean_table_lerobot",
+      "state_key": "state",
+      "action_key": "actions",
+      "native_dim": 15,
+      "joint_unit": "radians",
+      "cameras": ["image", "wrist_image_l", "wrist_image_r"]
+    },
+    {
+      "root": "datasets/piper_set_placemat_lerobot",
+      "state_key": "state",
+      "action_key": "actions",
+      "native_dim": 15,
+      "joint_unit": "radians",
+      "cameras": ["image", "wrist_image_l", "wrist_image_r"]
+    }
+  ]
+}

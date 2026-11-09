@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - piper_posttrain
+  - _self_
+
+# Select a folder independently of its instruction text or difficulty.
+# Prepare this updated snapshot with tools/prepare_piper_data.py --output ...
+paths:
+  piper: resources/piper/dataset_v3
+data:
+  source_root: ???
+joint96_posttrain:
+  piper_softprompt:
+    require_source_root: true

@@ -1,0 +1,27 @@
+# @package _global_
+defaults:
+  - robotwin_posttrain
+  - override /data: piper_joint96_online
+  - _self_
+
+# Data-interface specialization only. Optimizer/model/loss/schedule inherit
+# robotwin_posttrain unchanged; no local GPU or batch-size overrides.
+paths:
+  piper: resources/piper/dataset
+  piper_text: resources/piper/text_cache
+init_checkpoint: ${oc.env:WAM_PRETRAIN_CHECKPOINT,resources/hf/Phoenix-Pretrain/pretrain_256013.pt}
+local_robot_softprompt:
+  registry_path: configs/embodiment_registry/local_robot37_arm18_capacity28_v1.json
+joint96_posttrain:
+  online_robotwin: false
+  online_piper: true
+  robotwin_softprompt:
+    enabled: false
+  piper_softprompt:
+    enabled: true
+    embodiment_id: 14
+model:
+  joint_visual_codec:
+    csvae_checkpoint_path: ${oc.env:CSVAE_CHECKPOINT,resources/encoders/csvae.pt}
+    dino_kwargs:
+      checkpoint_path: ${oc.env:DINO_ENCODER_CHECKPOINT,resources/encoders/dino110k.pt}

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Replay run artifacts (generated at runtime)
+runs/
+*.log
+*.pid
+
+# Generated exports
+*.csv
+*.png
+
+# Local / machine-specific
+.DS_Store
+*.swp

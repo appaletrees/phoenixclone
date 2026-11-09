@@ -1,0 +1,16 @@
+# Repairs for the actual mixed server-image inventory reported by the user.
+# Remove the obsolete cloud-tpu-client==0.10 first: it pins google-api-python-client
+# to 1.8.0, whose API-core dependency requires protobuf<4, unlike vLLM>=5.29.6.
+# Preserve the image's GPU distributions using a second image-constraints file.
+-c server-cu130-py312.constraints.txt
+scikit-learn==1.6.1
+joblib>=1.2,<2
+packaging==25.0
+openai>=2,<3
+opentelemetry-exporter-otlp==1.45.1
+opentelemetry-exporter-otlp-proto-grpc==1.45.1
+tensorboardX==2.6.4
+elastic-transport==8.17.1
+google-api-python-client==2.187.0
+google-api-core==2.28.1
+protobuf==6.33.5
